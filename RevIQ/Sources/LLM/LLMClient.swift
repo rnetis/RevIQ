@@ -203,6 +203,7 @@ final class LLMClient {
 
 // MARK: - Context builders
 
+@MainActor
 enum CoachContext {
 
     static func live(session: LiveSession, settings: AppSettings) -> String {

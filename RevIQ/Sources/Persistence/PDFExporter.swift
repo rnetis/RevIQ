@@ -163,7 +163,7 @@ enum PDFExporter {
         UIColor(hex: 0x2FD9FF).setFill()
         band.fill()
         let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                              colors: [UIColor(hex: 0x2FD9FF).cgColor, UIColor(hex: 0x22FFB2).cgColor],
+                              colors: [UIColor(hex: 0x2FD9FF).cgColor, UIColor(hex: 0x22FFB2).cgColor] as CFArray,
                               locations: [0, 1])!
         let bandPath = UIBezierPath(rect: CGRect(x: 0, y: 0, width: pageRect.width, height: 6)).cgPath
         let context = page.cgContext

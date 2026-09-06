@@ -55,7 +55,7 @@ final class PersistenceManager {
         if let items = load([MaintenanceItem].self, from: url("maintenance.json")) {
             return items
         }
-        return MaintenanceItem.defaults
+        return [MaintenanceItem].defaults
     }
 
     func saveMaintenance(_ items: [MaintenanceItem]) {
