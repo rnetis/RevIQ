@@ -1,0 +1,30 @@
+name: Release v0.1
+
+on:
+  push:
+    tags:
+      - 'v0.1'
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build unsigned IPA
+        uses: ./.github/workflows/build-ipa.yml
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1
+          name: RevIQ v0.1
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            RevIQ-unsigned.ipa
