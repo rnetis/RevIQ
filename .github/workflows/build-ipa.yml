@@ -1,10 +1,10 @@
-name: Build Unsigned IPA
+name: Build Unsigned IPA & Release
 
 on:
   push:
     branches: [main, master]
+    tags: ['v*']
   workflow_dispatch:
-  workflow_call:
 
 concurrency:
   group: ipa-build-${{ github.ref }}
@@ -84,3 +84,15 @@ jobs:
           path: RevIQ-unsigned.ipa
           if-no-files-found: error
           compression-level: 0
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: RevIQ ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            RevIQ-unsigned.ipa
