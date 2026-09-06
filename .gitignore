@@ -1,0 +1,16 @@
+# Xcode / XcodeGen
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+Payload/
+
+# macOS
+.DS_Store
+*.swp
+
+# SwiftPM
+.build/
+.swiftpm/
