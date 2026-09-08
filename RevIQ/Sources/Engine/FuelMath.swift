@@ -38,7 +38,7 @@ enum FuelMath {
         return 3.4 + 0.045 * speedKmh + 0.00035 * pow(speedKmh - 75, 2)
     }
 
-    /// Grams of CO2 per liter of burned fuel.
+    /// Kilograms of CO₂ emitted per liter of burned fuel.
     static func co2Kg(liters: Double, fuel: FuelType) -> Double {
         let factor: Double
         switch fuel {
@@ -46,7 +46,7 @@ enum FuelMath {
         case .lpg: factor = 1.51
         default: factor = 2.31
         }
-        return liters * factor / 1000  // kg
+        return max(0, liters) * factor
     }
 
     /// MAF-based engine power estimate (rough, for Sport dashboard).

@@ -84,12 +84,15 @@ private struct CompletionResponse: Codable {
 
 enum LLMError: LocalizedError {
     case notConfigured
+    case invalidEndpoint(String)
     case http(Int, String)
 
     var errorDescription: String? {
         switch self {
         case .notConfigured:
             return "AI is not configured. Add an API key in Garage → AI Copilot."
+        case .invalidEndpoint(let endpoint):
+            return "The AI endpoint URL is invalid: \(endpoint)"
         case .http(let code, let body):
             let snippet = body.prefix(220)
             return "AI request failed (\(code)): \(snippet)"
@@ -119,7 +122,13 @@ final class LLMClient {
                                      temperature: config.temperature,
                                      max_tokens: maxTokens)
 
-        var request = URLRequest(url: URL(string: config.endpoint)!)
+        guard let url = URL(string: config.endpoint),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              url.host != nil else {
+            throw LLMError.invalidEndpoint(config.endpoint)
+        }
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -128,7 +137,7 @@ final class LLMClient {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard statusCode == 200 else {
+        guard (200...299).contains(statusCode) else {
             let text = String(data: data, encoding: .utf8) ?? ""
             throw LLMError.http(statusCode, text)
         }

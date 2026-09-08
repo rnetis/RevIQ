@@ -184,7 +184,9 @@ struct CoachView: View {
 
         let client = LLMClient(config: settings.llm)
         let context = CoachContext.live(session: session, settings: settings)
-        let history = messages
+        // `complete` adds `question` as the final user turn. Exclude the just-appended
+        // bubble so providers do not receive the same question twice.
+        let history = Array(messages.dropLast())
 
         Task {
             do {

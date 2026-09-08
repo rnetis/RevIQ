@@ -189,7 +189,7 @@ final class LiveSession: ObservableObject {
                 var pids = PIDSet.fastCycle
                 if self.cycleIndex % 3 == 0 { pids += [PIDSet.coolant, PIDSet.intake, PIDSet.trimST] }
                 if self.cycleIndex % 6 == 0 { pids += [PIDSet.fuelLevel, PIDSet.voltage, PIDSet.timing, PIDSet.trimLT] }
-                if self.cycleIndex % 9 == 0 { pids += [PIDSet.odo] }
+                if self.cycleIndex % 9 == 0 { pids += [PIDSet.distanceSinceCodesCleared] }
 
                 for pid in pids {
                     if Task.isCancelled { break outer }
@@ -228,15 +228,11 @@ final class LiveSession: ObservableObject {
         case "0E": s.timing = value
         case "06": s.trimST = value
         case "07": s.trimLT = value
-        case "31": s.odo = value
+        case "31": s.distanceSinceCodesClearedKm = value
         case "42": s.voltage = value
         default: break
         }
         sample = s
-
-        if pidID == "31", let odo = s.odo, let settings, odo > settings.vehicle.odometerKm, odo < 2_000_000 {
-            settings.vehicle.odometerKm = odo
-        }
 
         guard pidID == "0D" || pidID == "0C" else { return }
         guard let speed = s.speed else { return }

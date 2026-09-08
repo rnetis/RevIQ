@@ -136,7 +136,9 @@ struct Sample: Codable, Equatable {
     var trimST: Double?       // %
     var trimLT: Double?       // %
     var timing: Double?       // degrees
-    var odo: Double?          // km
+    /// Distance travelled since diagnostic trouble codes were last cleared (Mode 01 PID 31).
+    /// This is not the vehicle odometer.
+    var distanceSinceCodesClearedKm: Double?
     var voltage: Double?      // V
 
     static let empty = Sample()

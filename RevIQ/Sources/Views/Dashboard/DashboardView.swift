@@ -100,8 +100,9 @@ struct DashboardView: View {
                      unit: "V", icon: "bolt.car.fill", tint: Theme.neonGreen)
             StatTile(label: "Fuel level", value: session.sample.fuelLevel.map { Format.percent($0) } ?? "—",
                      icon: "gauge.with.dots.needle.bottom.50percent", tint: Theme.neonCyan)
-            StatTile(label: "Odometer", value: session.sample.odo.map { Format.distance($0, settings.units, decimals: 0) }
-                        ?? (settings.vehicle.odometerKm > 0 ? Format.distance(settings.vehicle.odometerKm, settings.units, decimals: 0) : "—"),
+            StatTile(label: "Odometer", value: settings.vehicle.odometerKm > 0
+                        ? Format.distance(settings.vehicle.odometerKm, settings.units, decimals: 0)
+                        : "—",
                      unit: Format.distanceUnit(settings.units), icon: "road.lanes", tint: Theme.textDim)
             if settings.preferredMode == .sport {
                 StatTile(label: "Est. power", value: session.enginePowerKW.map { String(format: "%.0f", $0 * 1.36) } ?? "—",

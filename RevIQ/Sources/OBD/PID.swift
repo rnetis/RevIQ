@@ -81,6 +81,7 @@ enum OBDParser {
     static func decodeDTCs(_ raw: String) -> [String] {
         let hex = clean(raw).hex.uppercased()
         var codes: [String] = []
+        var seen = Set<String>()
         guard let r = hex.range(of: "43") else { return codes }
         var payload = String(hex[r.upperBound...])
         // Some ECUs pad with 55s / 00s — trim non-dtc padding patterns conservatively.
@@ -89,7 +90,9 @@ enum OBDParser {
             let byteStr = String(payload[..<idx])
             payload = String(payload[idx...])
             guard let b = UInt32(byteStr, radix: 16) else { continue }
-            if b == 0 { continue }
+            // ECUs commonly pad the last Mode 03 frame with 00 or 55 bytes.
+            // Neither pattern represents a fault code.
+            if b == 0 || b == 0x5555 { continue }
             let systems = ["P", "C", "B", "U"]
             let sysIdx = Int((b >> 14) & 0x03)
             let d1 = Int((b >> 12) & 0x03)
@@ -97,7 +100,10 @@ enum OBDParser {
                               Int((b >> 8) & 0x0F),
                               Int((b >> 4) & 0x0F),
                               Int(b & 0x0F))
-            codes.append(systems[sysIdx] + String(d1) + rest)
+            let code = systems[sysIdx] + String(d1) + rest
+            if seen.insert(code).inserted {
+                codes.append(code)
+            }
         }
         return codes
     }
@@ -179,7 +185,8 @@ enum PIDSet {
         return (Double(b[0]) - 128) * 100 / 128
     }
 
-    static let odo = PID(id: "31", name: "Odometer", unit: "km") { raw in
+    /// SAE J1979 PID 31 reports distance travelled since DTCs were cleared, not odometer mileage.
+    static let distanceSinceCodesCleared = PID(id: "31", name: "Distance since DTCs cleared", unit: "km") { raw in
         guard let b = OBDParser.payloadBytes(forPID: "31", in: raw), b.count >= 4 else { return nil }
         return Double(b[0]) * 16_777_216 + Double(b[1]) * 65_536 + Double(b[2]) * 256 + Double(b[3])
     }
@@ -193,7 +200,7 @@ enum PIDSet {
     static let fastCycle: [PID] = [speed, rpm, maf, throttle, engineLoad, map]
 
     /// Polled every few cycles — slow-changing signals.
-    static let slowCycle: [PID] = [coolant, intake, fuelLevel, timing, voltage, odo, trimST, trimLT]
+    static let slowCycle: [PID] = [coolant, intake, fuelLevel, timing, voltage, distanceSinceCodesCleared, trimST, trimLT]
 
     static func byID(_ id: String) -> PID? {
         (fastCycle + slowCycle).first { $0.id == id }

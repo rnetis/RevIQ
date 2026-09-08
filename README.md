@@ -18,7 +18,7 @@
 | **Analytics** | Score-per-trip & consumption-per-trip charts, idle share, fuel saved vs. your aggressive baseline, CO₂ avoided, coach insights |
 | **Trip journal** | Auto-recorded trips with per-trip detail charts (speed / RPM / throttle), AI analyst notes, PDF export |
 | **Diagnostics** | Mode $03 fault-code reader, SAE-generic code database, AI diagnosis, Mode $04 clearing |
-| **Maintenance** | Odometer-based service tracker (oil, filters, plugs, fluids…) that auto-syncs with the car's odometer PID when available |
+| **Maintenance** | Odometer-based service tracker (oil, filters, plugs, fluids…) with a manually maintained vehicle odometer |
 | **Demo mode** | A full simulated ELM327 + car physics, so you can explore everything without hardware |
 | **Reports** | Shareable PDFs for the whole history or a single trip |
 
@@ -102,7 +102,7 @@ An unsigned IPA has no provisioning — pick one:
 3. If nothing appears: pair the adapter once in **iOS Settings → Bluetooth**, then rescan in RevIQ.
 4. The app runs the standard init (`ATZ`, echo off, headers off, protocol auto `ATSP0`) and polls ~6 fast PIDs per cycle + slow PIDs interleaved:
 
-`010D speed · 010C RPM · 0110 MAF · 0111 throttle · 0104 load · 010B MAP · 0105 coolant · 010F intake · 012F fuel level · 010E timing · 0106/07 fuel trims · 0142 voltage · 0131 odometer`
+`010D speed · 010C RPM · 0110 MAF · 0111 throttle · 0104 load · 010B MAP · 0105 coolant · 010F intake · 012F fuel level · 010E timing · 0106/07 fuel trims · 0142 voltage · 0131 distance since DTCs were cleared`
 
 Fuel numbers are estimated from **MAF** (SAE J1979 method): air mass ÷ AFR ÷ fuel density → L/h → L/100km. Diesel / LPG / hybrid constants are configurable in the vehicle profile.
 

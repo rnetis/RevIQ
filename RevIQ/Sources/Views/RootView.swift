@@ -26,6 +26,12 @@ struct RootView: View {
         .onChange(of: session.phase) { phase in
             UIApplication.shared.isIdleTimerDisabled = settings.keepScreenOn && phase.isLive
         }
+        .onChange(of: settings.keepScreenOn) { keepScreenOn in
+            UIApplication.shared.isIdleTimerDisabled = keepScreenOn && session.phase.isLive
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
     }
 }
 

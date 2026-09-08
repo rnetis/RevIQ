@@ -186,7 +186,7 @@ struct MaintenanceView: View {
 extension AppSettings {
     var sampleOdoNote: String {
         vehicle.odometerKm > 0
-            ? "Synced from the ECU odometer PID or set manually"
-            : "Set it manually — updated automatically when the car reports its odometer"
+            ? "Set manually from your vehicle's odometer"
+            : "Set this from your vehicle's dashboard odometer"
     }
 }
