@@ -172,7 +172,7 @@ struct Sparkline: View {
 
             func point(_ tv: TimeValue) -> CGPoint {
                 CGPoint(x: (tv.t - t0) / (t1 - t0) * size.width,
-                        y: size.height - (tv.v - v0) / (v1 - v0) * (size.height - 6) - 3)
+                        y: size.height - CGFloat((tv.v - v0) / (v1 - v0)) * (size.height - 6) - 3)
             }
 
             var path = Path()
