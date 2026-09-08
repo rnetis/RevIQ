@@ -64,11 +64,14 @@ final class ELM327BLE: NSObject, ObservableObject, OBDTransport {
     private var target: CBPeripheral?
     private var writeChar: CBCharacteristic?
     private var notifyChar: CBCharacteristic?
+    private var writeType: CBCharacteristicWriteType = .withoutResponse
 
     private var discovered: [UUID: CBPeripheral] = [:]
     private var rxBuffer = ""
     private var peripheralConnected = false
     private var servicesReady = false
+    private var connectionError: Error?
+    private var serviceDiscoveryError: Error?
 
     // MARK: Scanning
 
@@ -132,6 +135,12 @@ final class ELM327BLE: NSObject, ObservableObject, OBDTransport {
         peripheral.delegate = self
         peripheralConnected = false
         servicesReady = false
+        connectionError = nil
+        serviceDiscoveryError = nil
+        writeChar = nil
+        notifyChar = nil
+        writeType = .withoutResponse
+        rxBuffer = ""
         central.connect(peripheral)
 
         var deadline = Date().addingTimeInterval(14)
@@ -140,15 +149,20 @@ final class ELM327BLE: NSObject, ObservableObject, OBDTransport {
         }
         guard peripheralConnected else {
             central.cancelPeripheralConnection(peripheral)
+            if let connectionError {
+                throw OBDError.adapterError("Could not connect to \(info.name): \(connectionError.localizedDescription)")
+            }
             throw OBDError.adapterError("Could not connect to \(info.name)")
         }
 
-        peripheral.discoverServices(nil)
         deadline = Date().addingTimeInterval(10)
         while !servicesReady && Date() < deadline {
             try await Task.sleep(nanoseconds: 120_000_000)
         }
         guard servicesReady, writeChar != nil, notifyChar != nil else {
+            if let serviceDiscoveryError {
+                throw OBDError.adapterError("Could not inspect \(info.name): \(serviceDiscoveryError.localizedDescription)")
+            }
             throw OBDError.adapterError("Adapter has no serial service (try a different UART adapter)")
         }
 
@@ -189,9 +203,8 @@ final class ELM327BLE: NSObject, ObservableObject, OBDTransport {
         while offset < data.count {
             let end = min(offset + size, data.count)
             let chunk = data.subdata(in: offset..<end)
-            peripheral.writeValue(chunk, for: char, type: .withoutResponse)
+            peripheral.writeValue(chunk, for: char, type: writeType)
             offset = end
-            Thread.sleep(forTimeInterval: 0.012)
         }
     }
 
@@ -209,6 +222,10 @@ final class ELM327BLE: NSObject, ObservableObject, OBDTransport {
             _ = try? await send(step.cmd, timeout: step.timeout)
             try? await Task.sleep(nanoseconds: step.settle)
         }
+
+        // Do not report success merely because BLE connected. A successful
+        // prompt proves the UART path is actually usable by the ELM adapter.
+        _ = try await send("AT", timeout: 2.5)
     }
 
     private func handleLostConnection() {
@@ -268,6 +285,7 @@ extension ELM327BLE: CBCentralManagerDelegate {
                         didFailToConnect peripheral: CBPeripheral,
                         error: Error?) {
         peripheralConnected = false
+        connectionError = error
     }
 
     func centralManager(_ central: CBCentralManager,
@@ -284,6 +302,10 @@ extension ELM327BLE: CBCentralManagerDelegate {
 extension ELM327BLE: CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        if let error {
+            serviceDiscoveryError = error
+            return
+        }
         for service in peripheral.services ?? [] {
             peripheral.discoverCharacteristics(nil, for: service)
         }
@@ -292,19 +314,50 @@ extension ELM327BLE: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral,
                     didDiscoverCharacteristicsFor service: CBService,
                     error: Error?) {
+        if let error {
+            serviceDiscoveryError = error
+            return
+        }
+        // A UART's input and output characteristics must belong to the same
+        // service. Selecting arbitrary notify/write characteristics can pair a
+        // battery service with a UART service and makes the adapter appear to
+        // connect while every command silently goes nowhere.
+        var serviceNotify: CBCharacteristic?
+        var serviceWrite: CBCharacteristic?
+        var serviceWriteType: CBCharacteristicWriteType?
         for characteristic in service.characteristics ?? [] {
-            if characteristic.properties.contains(.notify) {
-                notifyChar = characteristic
-                peripheral.setNotifyValue(true, for: characteristic)
+            if characteristic.properties.contains(.notify) || characteristic.properties.contains(.indicate) {
+                serviceNotify = characteristic
             }
-            if characteristic.properties.contains(.writeWithoutResponse)
-                || characteristic.properties.contains(.write) {
-                writeChar = characteristic
+            if characteristic.properties.contains(.writeWithoutResponse) {
+                serviceWrite = characteristic
+                serviceWriteType = .withoutResponse
+            } else if characteristic.properties.contains(.write) {
+                serviceWrite = characteristic
+                serviceWriteType = .withResponse
             }
         }
-        if notifyChar != nil && writeChar != nil {
-            servicesReady = true
+        if let serviceNotify, let serviceWrite, let serviceWriteType {
+            notifyChar = serviceNotify
+            writeChar = serviceWrite
+            writeType = serviceWriteType
+            peripheral.setNotifyValue(true, for: serviceNotify)
         }
+    }
+
+    func peripheral(_ peripheral: CBPeripheral,
+                    didUpdateNotificationStateFor characteristic: CBCharacteristic,
+                    error: Error?) {
+        guard characteristic == notifyChar else { return }
+        if let error {
+            serviceDiscoveryError = error
+            return
+        }
+        guard characteristic.isNotifying else {
+            serviceDiscoveryError = OBDError.adapterError("Adapter did not enable serial notifications")
+            return
+        }
+        servicesReady = true
     }
 
     func peripheral(_ peripheral: CBPeripheral,
